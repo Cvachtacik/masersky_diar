@@ -15,15 +15,15 @@ final GoRouter router = GoRouter(
       builder: (context, state) => const HlavnaNavigacia(),
     ),
     GoRoute(
+      path: '/klienti/pridat',
+      builder: (context, state) => const ObrazovkaPridatAleboUpravitKlienta(),
+    ),
+    GoRoute(
       path: '/klienti/:id',
       builder: (context, state) {
         final id = int.parse(state.pathParameters['id']!);
         return ObrazovkaDetailKlienta(idKlienta: id);
       },
-    ),
-    GoRoute(
-      path: '/klienti/pridat',
-      builder: (context, state) => const ObrazovkaPridatAleboUpravitKlienta(),
     ),
   ],
 );
