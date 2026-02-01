@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import '../modely/klient.dart';
 import '../modely/termin.dart';
 import '../modely/termin_zoznam.dart';
+import '../modely/termin_detail.dart';
 
 class Databaza {
   Databaza._();
@@ -162,5 +163,30 @@ class Databaza {
     ''', [od.millisecondsSinceEpoch, doDna.millisecondsSinceEpoch]);
 
     return vysledok.map((m) => TerminZoznam.zMapy(m)).toList();
+  }
+  Future<TerminDetail?> nacitajTerminDetail(int idTerminu) async {
+    final databaza = await db;
+
+    final vysledok = await databaza.rawQuery('''
+      SELECT
+        t.id,
+        t.id_klienta,
+        t.zaciatok_ms,
+        t.trvanie_min,
+        t.nazov_sluzby,
+        t.cena,
+        t.poznamka,
+        t.stav,
+        k.meno,
+        k.telefon,
+        k.email
+      FROM terminy t
+      JOIN klienti k ON k.id = t.id_klienta
+      WHERE t.id = ?
+      LIMIT 1
+    ''', [idTerminu]);
+
+    if (vysledok.isEmpty) return null;
+    return TerminDetail.zMapy(vysledok.first);
   }
 }
