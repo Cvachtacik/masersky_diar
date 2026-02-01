@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../modely/klient.dart';
 import '../modely/termin.dart';
+import '../modely/termin_zoznam.dart';
 
 class Databaza {
   Databaza._();
@@ -136,5 +137,30 @@ class Databaza {
     );
 
     return vysledok.map((m) => Termin.zMapy(m)).toList();
+  }
+  Future<List<TerminZoznam>> nacitajTerminyZoznamPreDen(DateTime den) async {
+    final databaza = await db;
+
+    final od = DateTime(den.year, den.month, den.day);
+    final doDna = od.add(const Duration(days: 1));
+
+    final vysledok = await databaza.rawQuery('''
+      SELECT
+        t.id,
+        t.id_klienta,
+        t.zaciatok_ms,
+        t.trvanie_min,
+        t.nazov_sluzby,
+        t.cena,
+        k.meno,
+        k.telefon,
+        k.email
+      FROM terminy t
+      JOIN klienti k ON k.id = t.id_klienta
+      WHERE t.zaciatok_ms >= ? AND t.zaciatok_ms < ?
+      ORDER BY t.zaciatok_ms ASC
+    ''', [od.millisecondsSinceEpoch, doDna.millisecondsSinceEpoch]);
+
+    return vysledok.map((m) => TerminZoznam.zMapy(m)).toList();
   }
 }

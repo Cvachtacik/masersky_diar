@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../modely/termin.dart';
+import '../modely/termin_zoznam.dart';
 import '../sluzby/databaza.dart';
 
 class ObrazovkaKalendar extends StatefulWidget {
@@ -13,7 +13,7 @@ class ObrazovkaKalendar extends StatefulWidget {
 
 class _ObrazovkaKalendarState extends State<ObrazovkaKalendar> {
   DateTime _vybranyDen = DateTime.now();
-  late Future<List<Termin>> _buduceTerminy;
+  late Future<List<TerminZoznam>> _buduceTerminy;
 
   @override
   void initState() {
@@ -22,7 +22,8 @@ class _ObrazovkaKalendarState extends State<ObrazovkaKalendar> {
   }
 
   void _obnov() {
-    _buduceTerminy = Databaza.instancia.nacitajTerminyPreDen(_vybranyDen);
+    _buduceTerminy =
+        Databaza.instancia.nacitajTerminyZoznamPreDen(_vybranyDen);
   }
 
   Future<void> _vyberDatum() async {
@@ -76,7 +77,7 @@ class _ObrazovkaKalendarState extends State<ObrazovkaKalendar> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: FutureBuilder<List<Termin>>(
+            child: FutureBuilder<List<TerminZoznam>>(
               future: _buduceTerminy,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -99,11 +100,20 @@ class _ObrazovkaKalendarState extends State<ObrazovkaKalendar> {
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, i) {
                     final t = terminy[i];
+
                     final h = t.zaciatok.hour.toString().padLeft(2, '0');
                     final m = t.zaciatok.minute.toString().padLeft(2, '0');
+
+                    final cenaText = (t.cena == null) ? '' : ' • ${t.cena!.toStringAsFixed(2)} €';
+
                     return ListTile(
                       title: Text('${t.nazovSluzby} (${t.trvanieMin} min)'),
-                      subtitle: Text('Čas: $h:$m'),
+                      subtitle: Text('$h:$m • ${t.menoKlienta}$cenaText'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        await context.push('/terminy/${t.idTerminu}');
+                        setState(_obnov);
+                      },
                     );
                   },
                 );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../modely/termin.dart';
+import '../modely/termin_zoznam.dart';
 import '../sluzby/databaza.dart';
 
 class ObrazovkaDnes extends StatefulWidget {
@@ -12,7 +12,7 @@ class ObrazovkaDnes extends StatefulWidget {
 }
 
 class _ObrazovkaDnesState extends State<ObrazovkaDnes> {
-  late Future<List<Termin>> _buduceTerminy;
+  late Future<List<TerminZoznam>> _buduceTerminy;
 
   @override
   void initState() {
@@ -21,7 +21,8 @@ class _ObrazovkaDnesState extends State<ObrazovkaDnes> {
   }
 
   void _obnov() {
-    _buduceTerminy = Databaza.instancia.nacitajTerminyPreDen(DateTime.now());
+    _buduceTerminy =
+        Databaza.instancia.nacitajTerminyZoznamPreDen(DateTime.now());
   }
 
   @override
@@ -35,7 +36,7 @@ class _ObrazovkaDnesState extends State<ObrazovkaDnes> {
         },
         child: const Icon(Icons.add),
       ),
-      body: FutureBuilder<List<Termin>>(
+      body: FutureBuilder<List<TerminZoznam>>(
         future: _buduceTerminy,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -63,13 +64,20 @@ class _ObrazovkaDnesState extends State<ObrazovkaDnes> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final t = terminy[i];
+
               final h = t.zaciatok.hour.toString().padLeft(2, '0');
               final m = t.zaciatok.minute.toString().padLeft(2, '0');
 
+              final cenaText = (t.cena == null) ? '' : ' • ${t.cena!.toStringAsFixed(2)} €';
+
               return ListTile(
                 title: Text('${t.nazovSluzby} (${t.trvanieMin} min)'),
-                subtitle: Text('Čas: $h:$m'),
-                // neskôr: detail termínu
+                subtitle: Text('$h:$m • ${t.menoKlienta}$cenaText'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await context.push('/terminy/${t.idTerminu}');
+                  setState(_obnov);
+                },
               );
             },
           );
