@@ -7,6 +7,8 @@ import 'obrazovky/obrazovka_klienti.dart';
 import 'obrazovky/obrazovka_nastavenia.dart';
 import 'obrazovky/obrazovka_detail_klienta.dart';
 import 'obrazovky/obrazovka_pridat_upravit_klienta.dart';
+import 'obrazovky/obrazovka_detail_terminu.dart';
+import 'obrazovky/obrazovka_pridat_upravit_termin.dart';
 
 final GoRouter router = GoRouter(
   routes: [
@@ -23,6 +25,17 @@ final GoRouter router = GoRouter(
       builder: (context, state) {
         final id = int.parse(state.pathParameters['id']!);
         return ObrazovkaDetailKlienta(idKlienta: id);
+      },
+    ),
+    GoRoute(
+      path: '/terminy/pridat',
+      builder: (context, state) => const ObrazovkaPridatAleboUpravitTermin(),
+    ),
+    GoRoute(
+      path: '/terminy/:id',
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return ObrazovkaDetailTerminu(idTerminu: id);
       },
     ),
   ],

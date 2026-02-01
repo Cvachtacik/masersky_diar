@@ -2,13 +2,14 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../modely/klient.dart';
+import '../modely/termin.dart';
 
 class Databaza {
   Databaza._();
   static final Databaza instancia = Databaza._();
 
   static const _nazovDb = 'masersky_diar.db';
-  static const _verzia = 1;
+  static const _verzia = 2;
 
   Database? _db;
 
@@ -37,6 +38,36 @@ class Databaza {
             poznamka TEXT
           )
         ''');
+        await db.execute('''
+          CREATE TABLE terminy (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_klienta INTEGER NOT NULL,
+            zaciatok_ms INTEGER NOT NULL,
+            trvanie_min INTEGER NOT NULL,
+            nazov_sluzby TEXT NOT NULL,
+            cena REAL,
+            poznamka TEXT,
+            stav TEXT NOT NULL,
+            FOREIGN KEY (id_klienta) REFERENCES klienti (id)
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE terminy (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              id_klienta INTEGER NOT NULL,
+              zaciatok_ms INTEGER NOT NULL,
+              trvanie_min INTEGER NOT NULL,
+              nazov_sluzby TEXT NOT NULL,
+              cena REAL,
+              poznamka TEXT,
+              stav TEXT NOT NULL,
+              FOREIGN KEY (id_klienta) REFERENCES klienti (id)
+            )
+          ''');
+        }
       },
     );
   }
@@ -84,5 +115,26 @@ class Databaza {
   Future<int> vymazKlienta(int id) async {
     final databaza = await db;
     return databaza.delete('klienti', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> vlozTermin(Termin termin) async {
+    final databaza = await db;
+    return databaza.insert('terminy', termin.naMapu());
+  }
+
+  Future<List<Termin>> nacitajTerminyPreDen(DateTime den) async {
+    final databaza = await db;
+
+    final od = DateTime(den.year, den.month, den.day);
+    final doDna = od.add(const Duration(days: 1));
+
+    final vysledok = await databaza.query(
+      'terminy',
+      where: 'zaciatok_ms >= ? AND zaciatok_ms < ?',
+      whereArgs: [od.millisecondsSinceEpoch, doDna.millisecondsSinceEpoch],
+      orderBy: 'zaciatok_ms ASC',
+    );
+
+    return vysledok.map((m) => Termin.zMapy(m)).toList();
   }
 }
