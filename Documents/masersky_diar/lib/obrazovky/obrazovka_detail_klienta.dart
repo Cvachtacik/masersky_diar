@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../modely/klient.dart';
 import '../sluzby/databaza.dart';
 import 'obrazovka_pridat_upravit_klienta.dart';
+import '../sluzby/spustac_odkazov.dart';
 
 class ObrazovkaDetailKlienta extends StatefulWidget {
   final int idKlienta;
@@ -113,16 +114,68 @@ class _ObrazovkaDetailKlientaState extends State<ObrazovkaDetailKlienta> {
                 Text('Poznámka: ${klient.poznamka ?? '—'}'),
                 const SizedBox(height: 24),
                 const Text(
-                  'Rýchle akcie (pridáme v ďalšom kroku):',
+                  'Rýchle akcie:',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 10,
-                  children: const [
-                    Chip(label: Text('Zavolať')),
-                    Chip(label: Text('SMS')),
-                    Chip(label: Text('E-mail')),
+                  spacing: 12,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () async {
+                        try {
+                          await SpustacOdkazov.zavolat(klient.telefon);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Nepodarilo sa zavolať: $e')),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.call),
+                      label: const Text('Zavolať'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        try {
+                          await SpustacOdkazov.poslatSms(
+                            klient.telefon,
+                            text: 'Dobrý deň, pripomínam masáž...',
+                          );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Nepodarilo sa otvoriť SMS: $e')),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.sms),
+                      label: const Text('SMS'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: (klient.email == null || klient.email!.isEmpty)
+                          ? null
+                          : () async {
+                              try {
+                                await SpustacOdkazov.poslatEmail(
+                                  klient.email!,
+                                  predmet: 'Masáž – informácia',
+                                  telo: 'Dobrý deň,\n\nposielam informáciu k termínu masáže.\n',
+                                );
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Nepodarilo sa otvoriť e-mail: $e')),
+                                  );
+                                }
+                              }
+                            },
+                      icon: const Icon(Icons.email),
+                      label: const Text('E-mail'),
+                    ),
                   ],
                 ),
               ],
