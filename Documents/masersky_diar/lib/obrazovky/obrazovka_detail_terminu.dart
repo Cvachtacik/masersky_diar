@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../modely/termin_detail.dart';
 import '../sluzby/databaza.dart';
 import '../sluzby/spustac_odkazov.dart';
+import '../sluzby/notifikacie.dart';
 
 class ObrazovkaDetailTerminu extends StatefulWidget {
   final int idTerminu;
@@ -34,7 +35,58 @@ class _ObrazovkaDetailTerminuState extends State<ObrazovkaDetailTerminu> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Detail termínu')),
+      appBar: AppBar(
+        title: const Text('Detail termínu'),
+        actions: [
+          IconButton(
+            tooltip: 'Vymazať termín',
+            icon: const Icon(Icons.delete),
+            onPressed: () async {
+              final potvrdit = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Vymazať termín?'),
+                  content: const Text('Naozaj chceš vymazať tento termín?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Nie'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Áno, vymazať'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (potvrdit != true) return;
+
+              try {
+                final idNotif = await Databaza.instancia
+                    .nacitajIdNotifikaciePreTermin(widget.idTerminu);
+
+                if (idNotif != null) {
+                  await Notifikacie.zrusNotifikaciu(idNotif);
+                }
+
+                await Databaza.instancia.vymazTermin(widget.idTerminu);
+
+                if (context.mounted) {
+                  Navigator.of(context).pop(true);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Vymazanie zlyhalo: $e')),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
+
       body: FutureBuilder<TerminDetail?>(
         future: _buduciDetail,
         builder: (context, snapshot) {

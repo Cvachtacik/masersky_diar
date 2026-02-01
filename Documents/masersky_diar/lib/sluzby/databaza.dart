@@ -11,7 +11,7 @@ class Databaza {
   static final Databaza instancia = Databaza._();
 
   static const _nazovDb = 'masersky_diar.db';
-  static const _verzia = 2;
+  static const _verzia = 3;
 
   Database? _db;
 
@@ -50,6 +50,8 @@ class Databaza {
             cena REAL,
             poznamka TEXT,
             stav TEXT NOT NULL,
+            upozornit_min_pred INTEGER,
+            id_notifikacie INTEGER,
             FOREIGN KEY (id_klienta) REFERENCES klienti (id)
           )
         ''');
@@ -69,6 +71,10 @@ class Databaza {
               FOREIGN KEY (id_klienta) REFERENCES klienti (id)
             )
           ''');
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE terminy ADD COLUMN upozornit_min_pred INTEGER');
+          await db.execute('ALTER TABLE terminy ADD COLUMN id_notifikacie INTEGER');
         }
       },
     );
@@ -188,5 +194,45 @@ class Databaza {
 
     if (vysledok.isEmpty) return null;
     return TerminDetail.zMapy(vysledok.first);
+  }
+  Future<int> nastavNotifikaciuPreTermin({
+    required int idTerminu,
+    int? upozornitMinPred,
+    int? idNotifikacie,
+  }) async {
+    final databaza = await db;
+    return databaza.update(
+      'terminy',
+      {
+        'upozornit_min_pred': upozornitMinPred,
+        'id_notifikacie': idNotifikacie,
+      },
+      where: 'id = ?',
+      whereArgs: [idTerminu],
+    );
+  }
+  Future<int?> nacitajIdNotifikaciePreTermin(int idTerminu) async {
+    final databaza = await db;
+    final vysledok = await databaza.query(
+      'terminy',
+      columns: ['id_notifikacie'],
+      where: 'id = ?',
+      whereArgs: [idTerminu],
+      limit: 1,
+    );
+    if (vysledok.isEmpty) return null;
+
+    final hodnota = vysledok.first['id_notifikacie'];
+    if (hodnota == null) return null;
+    return hodnota as int;
+  }
+
+  Future<int> vymazTermin(int idTerminu) async {
+    final databaza = await db;
+    return databaza.delete(
+      'terminy',
+      where: 'id = ?',
+      whereArgs: [idTerminu],
+    );
   }
 }

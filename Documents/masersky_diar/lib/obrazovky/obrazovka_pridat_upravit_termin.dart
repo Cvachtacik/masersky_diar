@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../modely/klient.dart';
 import '../modely/termin.dart';
 import '../sluzby/databaza.dart';
+import '../sluzby/notifikacie.dart';
 
 class ObrazovkaPridatAleboUpravitTermin extends StatefulWidget {
   const ObrazovkaPridatAleboUpravitTermin({super.key});
@@ -26,6 +27,9 @@ class _ObrazovkaPridatAleboUpravitTerminState
   final _trvanieCtrl = TextEditingController(text: '60');
   final _cenaCtrl = TextEditingController();
   final _poznamkaCtrl = TextEditingController();
+
+  bool _upozornit = true;
+  int _minPred = 60;
 
   bool _nacitavam = true;
   bool _ulozujem = false;
@@ -143,7 +147,25 @@ class _ObrazovkaPridatAleboUpravitTerminState
             : _poznamkaCtrl.text.trim(),
       );
 
-      await Databaza.instancia.vlozTermin(termin);
+      final idTerminu = await Databaza.instancia.vlozTermin(termin);
+
+      if (_upozornit) {
+        final idNotif = Notifikacie.noveIdNotifikacie();
+        final casNotifikacie = termin.zaciatok.subtract(Duration(minutes: _minPred));
+
+        await Notifikacie.naplanujNotifikaciu(
+          idNotifikacie: idNotif,
+          casNotifikacie: casNotifikacie,
+          titulok: 'Pripomienka termínu',
+          text: '${termin.nazovSluzby} o ${termin.zaciatok.hour.toString().padLeft(2, '0')}:${termin.zaciatok.minute.toString().padLeft(2, '0')}',
+        );
+
+        await Databaza.instancia.nastavNotifikaciuPreTermin(
+          idTerminu: idTerminu,
+          upozornitMinPred: _minPred,
+          idNotifikacie: idNotif,
+        );
+      }
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -242,6 +264,29 @@ class _ObrazovkaPridatAleboUpravitTerminState
                           ],
                         ),
                         const SizedBox(height: 12),
+
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Upozorniť pred termínom'),
+                            value: _upozornit,
+                            onChanged: (v) => setState(() => _upozornit = v),
+                          ),
+                          if (_upozornit)
+                            DropdownButtonFormField<int>(
+                              value: _minPred,
+                              decoration: const InputDecoration(
+                                labelText: 'Koľko minút vopred',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: const [1, 5, 15, 30, 60, 120, 1440]
+                                  .map((m) => DropdownMenuItem(
+                                        value: m,
+                                        child: Text(m == 1440 ? '1 deň' : '$m min'),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) => setState(() => _minPred = v ?? 60),
+                            ),
+                          const SizedBox(height: 12),
 
                         TextFormField(
                           controller: _trvanieCtrl,
