@@ -6,7 +6,9 @@ import '../sluzby/databaza.dart';
 import '../sluzby/notifikacie.dart';
 
 class ObrazovkaPridatAleboUpravitTermin extends StatefulWidget {
-  const ObrazovkaPridatAleboUpravitTermin({super.key});
+  final int? idTerminu;
+
+  const ObrazovkaPridatAleboUpravitTermin({super.key, this.idTerminu});
 
   @override
   State<ObrazovkaPridatAleboUpravitTermin> createState() =>
@@ -38,6 +40,28 @@ class _ObrazovkaPridatAleboUpravitTerminState
   void initState() {
     super.initState();
     _nacitajKlientov();
+
+    if (widget.idTerminu != null) {
+      _nacitajTerminNaUpravu(widget.idTerminu!);
+    }
+  }
+
+  Future<void> _nacitajTerminNaUpravu(int id) async {
+    final t = await Databaza.instancia.nacitajTerminPodlaId(id);
+    if (t == null) return;
+
+    setState(() {
+      _idVybratehoKlienta = t.idKlienta;
+      _datum = DateTime(t.zaciatok.year, t.zaciatok.month, t.zaciatok.day);
+      _cas = TimeOfDay(hour: t.zaciatok.hour, minute: t.zaciatok.minute);
+      _sluzbaCtrl.text = t.nazovSluzby;
+      _trvanieCtrl.text = t.trvanieMin.toString();
+      _cenaCtrl.text = t.cena?.toString() ?? '';
+      _poznamkaCtrl.text = t.poznamka ?? '';
+
+      _upozornit = t.upozornitMinPred != null;
+      _minPred = t.upozornitMinPred ?? 60;
+    });
   }
 
   @override
@@ -55,8 +79,7 @@ class _ObrazovkaPridatAleboUpravitTerminState
       final klienti = await Databaza.instancia.nacitajKlientov();
       setState(() {
         _klienti = klienti;
-        _idVybratehoKlienta =
-            klienti.isNotEmpty ? klienti.first.id : null;
+        _idVybratehoKlienta ??= klienti.isNotEmpty ? klienti.first.id : null;
       });
     } finally {
       if (mounted) setState(() => _nacitavam = false);
@@ -111,7 +134,7 @@ class _ObrazovkaPridatAleboUpravitTerminState
 
   String? _overCenu(String? v) {
     final s = (v ?? '').trim();
-    if (s.isEmpty) return null; // voliteľné
+    if (s.isEmpty) return null;
     final cislo = double.tryParse(s.replaceAll(',', '.'));
     if (cislo == null || cislo < 0) return 'Zadaj platnú cenu';
     return null;
@@ -129,41 +152,94 @@ class _ObrazovkaPridatAleboUpravitTerminState
     }
 
     setState(() => _ulozujem = true);
+
     try {
       final trvanie = int.parse(_trvanieCtrl.text.trim());
       final cenaText = _cenaCtrl.text.trim();
-      final cena = cenaText.isEmpty
-          ? null
-          : double.parse(cenaText.replaceAll(',', '.'));
+      final cena = cenaText.isEmpty ? null : double.parse(cenaText.replaceAll(',', '.'));
 
-      final termin = Termin(
+      final terminZoFormulara = Termin(
         idKlienta: _idVybratehoKlienta!,
         zaciatok: _zlozZaciatok(),
         trvanieMin: trvanie,
         nazovSluzby: _sluzbaCtrl.text.trim(),
         cena: cena,
-        poznamka: _poznamkaCtrl.text.trim().isEmpty
-            ? null
-            : _poznamkaCtrl.text.trim(),
+        poznamka: _poznamkaCtrl.text.trim().isEmpty ? null : _poznamkaCtrl.text.trim(),
       );
 
-      final idTerminu = await Databaza.instancia.vlozTermin(termin);
+      if (widget.idTerminu == null) {
+        final idTerminu = await Databaza.instancia.vlozTermin(terminZoFormulara);
+
+        if (_upozornit) {
+          final idNotif = Notifikacie.noveIdNotifikacie();
+          final casNotifikacie =
+              terminZoFormulara.zaciatok.subtract(Duration(minutes: _minPred));
+
+          await Notifikacie.naplanujNotifikaciu(
+            idNotifikacie: idNotif,
+            casNotifikacie: casNotifikacie,
+            titulok: 'Pripomienka termínu',
+            text:
+                '${terminZoFormulara.nazovSluzby} o ${terminZoFormulara.zaciatok.hour.toString().padLeft(2, '0')}:${terminZoFormulara.zaciatok.minute.toString().padLeft(2, '0')}',
+          );
+
+          await Databaza.instancia.nastavNotifikaciuPreTermin(
+            idTerminu: idTerminu,
+            upozornitMinPred: _minPred,
+            idNotifikacie: idNotif,
+          );
+        }
+
+        if (mounted) Navigator.of(context).pop(true);
+        return;
+      }
+
+      final idTerminu = widget.idTerminu!;
+
+      final staraIdNotif =
+          await Databaza.instancia.nacitajIdNotifikaciePreTermin(idTerminu);
+      if (staraIdNotif != null) {
+        await Notifikacie.zrusNotifikaciu(staraIdNotif);
+      }
+
+      final upraveny = Termin(
+        id: idTerminu,
+        idKlienta: terminZoFormulara.idKlienta,
+        zaciatok: terminZoFormulara.zaciatok,
+        trvanieMin: terminZoFormulara.trvanieMin,
+        nazovSluzby: terminZoFormulara.nazovSluzby,
+        cena: terminZoFormulara.cena,
+        poznamka: terminZoFormulara.poznamka,
+        stav: terminZoFormulara.stav,
+        upozornitMinPred: _upozornit ? _minPred : null,
+        idNotifikacie: null,
+      );
+
+      await Databaza.instancia.upravTermin(upraveny);
 
       if (_upozornit) {
-        final idNotif = Notifikacie.noveIdNotifikacie();
-        final casNotifikacie = termin.zaciatok.subtract(Duration(minutes: _minPred));
+        final novaIdNotif = Notifikacie.noveIdNotifikacie();
+        final casNotifikacie =
+            terminZoFormulara.zaciatok.subtract(Duration(minutes: _minPred));
 
         await Notifikacie.naplanujNotifikaciu(
-          idNotifikacie: idNotif,
+          idNotifikacie: novaIdNotif,
           casNotifikacie: casNotifikacie,
           titulok: 'Pripomienka termínu',
-          text: '${termin.nazovSluzby} o ${termin.zaciatok.hour.toString().padLeft(2, '0')}:${termin.zaciatok.minute.toString().padLeft(2, '0')}',
+          text:
+              '${terminZoFormulara.nazovSluzby} o ${terminZoFormulara.zaciatok.hour.toString().padLeft(2, '0')}:${terminZoFormulara.zaciatok.minute.toString().padLeft(2, '0')}',
         );
 
         await Databaza.instancia.nastavNotifikaciuPreTermin(
           idTerminu: idTerminu,
           upozornitMinPred: _minPred,
-          idNotifikacie: idNotif,
+          idNotifikacie: novaIdNotif,
+        );
+      } else {
+        await Databaza.instancia.nastavNotifikaciuPreTermin(
+          idTerminu: idTerminu,
+          upozornitMinPred: null,
+          idNotifikacie: null,
         );
       }
 
@@ -182,7 +258,9 @@ class _ObrazovkaPridatAleboUpravitTerminState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pridať termín')),
+      appBar: AppBar(
+        title: Text(widget.idTerminu == null ? 'Pridať termín' : 'Upraviť termín'),
+      ),
       body: _nacitavam
           ? const Center(child: CircularProgressIndicator())
           : _klienti.isEmpty

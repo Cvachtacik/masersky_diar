@@ -4,6 +4,7 @@ import '../modely/termin_detail.dart';
 import '../sluzby/databaza.dart';
 import '../sluzby/spustac_odkazov.dart';
 import '../sluzby/notifikacie.dart';
+import 'package:go_router/go_router.dart';
 
 class ObrazovkaDetailTerminu extends StatefulWidget {
   final int idTerminu;
@@ -38,6 +39,19 @@ class _ObrazovkaDetailTerminuState extends State<ObrazovkaDetailTerminu> {
       appBar: AppBar(
         title: const Text('Detail termínu'),
         actions: [
+          IconButton(
+            tooltip: 'Upraviť termín',
+            icon: const Icon(Icons.edit),
+            onPressed: () async {
+              await context.push('/terminy/upravit/${widget.idTerminu}');
+
+              // po návrate z editácie sa obnoví detail (najjednoduchšie: znovu načítať)
+              if (!mounted) return;
+              setState(() {
+                _buduciDetail = Databaza.instancia.nacitajTerminDetail(widget.idTerminu);
+              });
+            },
+          ),
           IconButton(
             tooltip: 'Vymazať termín',
             icon: const Icon(Icons.delete),

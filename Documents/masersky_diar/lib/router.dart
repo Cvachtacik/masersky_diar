@@ -32,6 +32,13 @@ final GoRouter router = GoRouter(
       builder: (context, state) => const ObrazovkaPridatAleboUpravitTermin(),
     ),
     GoRoute(
+      path: '/terminy/upravit/:id',
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return ObrazovkaPridatAleboUpravitTermin(idTerminu: id);
+      },
+    ),
+    GoRoute(
       path: '/terminy/:id',
       builder: (context, state) {
         final id = int.parse(state.pathParameters['id']!);

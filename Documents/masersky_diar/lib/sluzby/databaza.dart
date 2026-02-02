@@ -235,4 +235,28 @@ class Databaza {
       whereArgs: [idTerminu],
     );
   }
+  Future<Termin?> nacitajTerminPodlaId(int idTerminu) async {
+    final databaza = await db;
+    final vysledok = await databaza.query(
+      'terminy',
+      where: 'id = ?',
+      whereArgs: [idTerminu],
+      limit: 1,
+    );
+    if (vysledok.isEmpty) return null;
+    return Termin.zMapy(vysledok.first);
+  }
+
+  Future<int> upravTermin(Termin termin) async {
+    if (termin.id == null) {
+      throw ArgumentError('Termín musí mať id pri úprave.');
+    }
+    final databaza = await db;
+    return databaza.update(
+      'terminy',
+      termin.naMapu(),
+      where: 'id = ?',
+      whereArgs: [termin.id],
+    );
+  }
 }
